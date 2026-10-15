@@ -1,0 +1,2370 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LAM Stage 2 – Live Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f0f2f5;
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --border: #cbd5e1;
+      --border-h: #94a3b8;
+      --text: #0f172a;
+      --text-2: #334155;
+      --text-m: #64748b;
+      --accent: #0072bd;
+      --accent-g: rgba(0, 114, 189, .25);
+      --good: #77ac30;
+      --bad: #a2142f;
+      --warn: #edb120;
+
+      /* Engineering Signal Palette */
+      --c-flow: #0072bd;
+      --c-target: #d95319;
+      --c-total: #77ac30;
+      --c-p1: #d95319;
+      --c-p2: #edb120;
+      --c-p3: #7e2f8e;
+      --c-flt: #a2142f;
+      --c-valve: #4dbeee;
+      --badge-idle: #64748b;
+      --badge-c1: #0072bd;
+      --badge-c2: #7e2f8e;
+      --badge-done: #77ac30;
+      --badge-man: #edb120;
+    }
+
+    /* Dark Theme override */
+    body.dark-theme {
+      --bg: #0b1120;
+      --surface: #111827;
+      --surface-2: #1e293b;
+      --border: rgba(255, 255, 255, .08);
+      --border-h: rgba(255, 255, 255, .18);
+      --text: #f1f5f9;
+      --text-2: #94a3b8;
+      --text-m: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    html {
+      height: 100%
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+      z-index: 200
+    }
+
+    /* ── Header ── */
+    .header {
+      position: sticky;
+      top: 3px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 28px;
+      background: var(--surface);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    body.dark-theme .header {
+      background: rgba(17, 24, 39, .88);
+      box-shadow: none;
+    }
+
+    .brand h1 {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -.02em;
+      color: var(--text);
+    }
+
+    .brand span {
+      display: block;
+      font-size: 11.5px;
+      color: var(--text-m);
+      letter-spacing: .04em;
+      margin-top: 1px
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px
+    }
+
+    .btn-connect {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 20px;
+      border-radius: 10px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #ffffff;
+      font: 600 13px/1 inherit;
+      cursor: pointer;
+      transition: all .25s;
+    }
+
+    .btn-connect:hover {
+      background: #005a9e;
+      box-shadow: 0 2px 12px var(--accent-g)
+    }
+
+    .pill {
+      font-size: 12px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      color: var(--text-m);
+    }
+
+    .pill.ok {
+      background: rgba(34, 197, 94, .12);
+      color: var(--good)
+    }
+
+    .pill.ok::before {
+      content: '';
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--good);
+      margin-right: 7px;
+      animation: blink 2s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .3
+      }
+    }
+
+    /* ── Container ── */
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 20px 28px 60px
+    }
+
+    /* ── Status row ── */
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 14px
+    }
+
+    .badge {
+      padding: 8px 18px;
+      border-radius: 10px;
+      color: #fff;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: .04em;
+      background: var(--badge-idle);
+      transition: background .4s;
+    }
+
+    .badge.CASE1 {
+      background: var(--badge-c1);
+      animation: pulse-c1 2s ease-in-out infinite
+    }
+
+    .badge.CASE2 {
+      background: var(--badge-c2);
+      animation: pulse-c2 2s ease-in-out infinite
+    }
+
+    .badge.DONE {
+      background: var(--badge-done)
+    }
+
+    .badge.MANUAL {
+      background: var(--badge-man)
+    }
+
+    @keyframes pulse-c1 {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, .35)
+      }
+
+      50% {
+        box-shadow: 0 0 14px 4px rgba(59, 130, 246, .18)
+      }
+    }
+
+    @keyframes pulse-c2 {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(139, 92, 246, .35)
+      }
+
+      50% {
+        box-shadow: 0 0 14px 4px rgba(139, 92, 246, .18)
+      }
+    }
+
+    .status-info {
+      font-size: 14px;
+      color: var(--text-2)
+    }
+
+    .spacer {
+      flex: 1
+    }
+
+    .last-event {
+      color: var(--text-m);
+      font-size: 12.5px;
+      max-width: 520px;
+      text-align: right
+    }
+
+    /* ── Warning ── */
+    .warn-bar {
+      display: none;
+      background: rgba(245, 158, 11, .08);
+      color: var(--warn);
+      border: 1px solid rgba(245, 158, 11, .25);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 14px;
+      font-size: 13px;
+    }
+
+    /* ── Sequence bar ── */
+    .seq-bar {
+      background: rgba(59, 130, 246, .06);
+      border: 1px solid rgba(59, 130, 246, .18);
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    .seq-bar b {
+      color: var(--accent)
+    }
+
+    .seq-bar .done {
+      color: var(--good);
+      font-weight: 600
+    }
+
+    .seq-bar .pending {
+      color: var(--text-m)
+    }
+
+    .seq-bar .active {
+      color: var(--accent);
+      font-weight: 700
+    }
+
+    /* ── Tiles ── */
+    .tiles {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .tile {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      transition: border-color .3s, transform .2s, box-shadow .2s;
+    }
+
+    .tile:hover {
+      border-color: var(--border-h);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+
+    .tile-label {
+      font-size: 11px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--text-m);
+      margin-bottom: 4px
+    }
+
+    .tile-value {
+      font-size: 28px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.2
+    }
+
+    .tile-value small {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-2);
+      margin-left: 3px
+    }
+
+    .tile-sub {
+      font-size: 12px;
+      color: var(--text-m);
+      margin-top: 2px
+    }
+
+    .tile-pumps {
+      font-size: 17px;
+      font-weight: 600
+    }
+
+    .tile.alert {
+      border-color: var(--bad)
+    }
+
+    .tile.alert .tile-value {
+      color: var(--bad)
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 2px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .tabs button {
+      font: 500 13px/1 inherit;
+      background: none;
+      border: 0;
+      padding: 11px 18px;
+      cursor: pointer;
+      color: var(--text-m);
+      position: relative;
+      transition: color .3s;
+    }
+
+    .tabs button::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 50%;
+      width: 0;
+      height: 2px;
+      background: var(--accent);
+      transition: width .3s, left .3s;
+      border-radius: 1px;
+    }
+
+    .tabs button:hover {
+      color: var(--text-2)
+    }
+
+    .tabs button.on {
+      color: var(--text);
+      font-weight: 600
+    }
+
+    .tabs button.on::after {
+      left: 0;
+      width: 100%
+    }
+
+    .tab {
+      display: none
+    }
+
+    .tab.on {
+      display: block
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* ── Tools / button row ── */
+    .tools {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+      align-items: center
+    }
+
+    .btn {
+      font: 500 13px/1 inherit;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 14px;
+      cursor: pointer;
+      transition: all .2s;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+
+    .btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      background: var(--surface-2);
+    }
+
+    .btn:disabled {
+      opacity: .35;
+      cursor: not-allowed
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+      font-weight: 600;
+      box-shadow: 0 1px 3px rgba(0, 114, 189, .25);
+    }
+
+    .btn.primary:hover:not(:disabled) {
+      background: #005a9e;
+      border-color: #005a9e;
+    }
+
+    .mini {
+      font: inherit;
+      font-size: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text-2);
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    .mini:hover {
+      border-color: var(--accent);
+      color: var(--text)
+    }
+
+    .hint {
+      color: var(--text-m);
+      font-size: 12.5px
+    }
+
+    /* ── Charts ── */
+    canvas {
+      width: 100%;
+      height: 260px;
+      display: block;
+      border-radius: 8px
+    }
+
+    canvas.tall {
+      height: 320px
+    }
+
+    /* ── Tables ── */
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-variant-numeric: tabular-nums
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--border);
+      padding: 9px 10px;
+      text-align: right;
+      font-size: 13px
+    }
+
+    th {
+      color: var(--text-m);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .05em
+    }
+
+    th:first-child,
+    td:first-child {
+      text-align: left
+    }
+
+    td input {
+      width: 96px;
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      text-align: right;
+      font: inherit;
+      transition: border-color .3s;
+    }
+
+    td input:focus {
+      border-color: var(--accent);
+      outline: none
+    }
+
+    /* ── Calibration results ── */
+    .res {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+      margin-top: 14px
+    }
+
+    .res div {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px
+    }
+
+    .res b {
+      display: block;
+      font-size: 20px;
+      font-variant-numeric: tabular-nums;
+      margin-top: 2px
+    }
+
+    .res span {
+      font-size: 11px;
+      color: var(--text-m);
+      text-transform: uppercase;
+      letter-spacing: .05em
+    }
+
+    /* ── Log ── */
+    #logBox {
+      font: 12.5px/1.6 'JetBrains Mono', ui-monospace, Consolas, monospace;
+      max-height: 420px;
+      overflow: auto;
+      white-space: pre-wrap;
+      padding: 10px;
+      border-radius: 8px;
+      background: var(--bg);
+    }
+
+    #logBox .err {
+      color: var(--bad)
+    }
+
+    #logBox .event {
+      color: var(--accent)
+    }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center;
+      padding: 28px;
+      color: var(--text-m);
+      font-size: 11.5px;
+      letter-spacing: .05em
+    }
+
+    /* ── Responsive ── */
+    @media(max-width:768px) {
+      .header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 12px 16px
+      }
+
+      .container {
+        padding: 14px 16px 40px
+      }
+
+      .tiles {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr))
+      }
+
+      .tabs button {
+        padding: 9px 12px;
+        font-size: 12px
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header class="header">
+    <div class="brand">
+      <h1>LAM Stage 2</h1>
+      <span>Live Monitoring Dashboard</span>
+    </div>
+    <div class="header-right">
+      <button id="btnConnect" class="btn-connect">Connect ESP32 (USB)</button>
+      <span id="conn" class="pill">Disconnected</span>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="status-row">
+      <div id="badge" class="badge">IDLE</div>
+      <p id="info" class="status-info">Not connected</p>
+      <div class="spacer"></div>
+      <p id="lastEv" class="last-event"></p>
+    </div>
+
+    <div id="warn" class="warn-bar"></div>
+    <div id="seqBar" class="seq-bar" style="display:none"></div>
+
+    <section class="tiles">
+      <div class="tile">
+        <div class="tile-label">Flow Rate</div>
+        <div class="tile-value"><span id="tQ">–</span><small>L/min</small></div>
+        <div class="tile-sub"><span id="tQs">–</span> mL/s · flow rate</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Pulse Frequency</div>
+        <div class="tile-value"><span id="tF">–</span><small>Hz</small></div>
+        <div class="tile-sub"><span id="tPulses">–</span> pulses total</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Total Transferred</div>
+        <div class="tile-value"><span id="tTot">–</span><small>L</small></div>
+        <div class="tile-sub">through FT-01</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Velocity (8 mm pipe)</div>
+        <div class="tile-value"><span id="tV">–</span><small>m/s</small></div>
+        <div class="tile-sub">Re = <span id="tRe">–</span></div>
+      </div>
+      <div class="tile" id="tileFlt">
+        <div class="tile-label">Float Switch</div>
+        <div class="tile-value"><span id="tFlt">–</span></div>
+        <div class="tile-sub" id="tFltN">sump level</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Valve OV-01</div>
+        <div class="tile-value"><span id="tValve">–</span></div>
+        <div class="tile-sub">ON/OFF switch: <span id="tSw">–</span></div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Pumps (duty)</div>
+        <div class="tile-value tile-pumps">P1 <span id="tP1">0</span>% · P2 <span id="tP2">0</span>% · P3 <span
+            id="tP3">0</span>%</div>
+      </div>
+    </section>
+
+    <nav class="tabs" id="tabs">
+      <button data-tab="run" class="on">Run (Case 1 &amp; 2)</button>
+      <button data-tab="cal">Calibration</button>
+      <button data-tab="valve">Valve vs Flow</button>
+      <button data-tab="vel">Velocity</button>
+      <button data-tab="log">Log</button>
+    </nav>
+
+    <!-- RUN -->
+    <section id="tab-run" class="tab on">
+      <div class="card">
+        <h2>Flow vs time</h2>
+        <div class="tools">
+          <button class="btn" id="btnTheme">Theme: White</button>
+          <button class="btn" id="btnUnit">Unit: mL/s (click for L/min)</button>
+          <button class="btn primary" id="btnScript">Export script (.m)</button>
+          <button class="btn" id="btnPng">Save graphs (PNG)</button>
+          <button class="btn" id="btnCsv">Download data (CSV)</button>
+        </div>
+        <canvas id="chFlow"></canvas>
+      </div>
+      <div class="card">
+        <h2>Total transferred (L)</h2><canvas id="chTotal"></canvas>
+      </div>
+      <div class="card">
+        <h2>Pumps, valve &amp; float switch</h2><canvas id="chDuty"></canvas>
+      </div>
+    </section>
+
+    <!-- CALIBRATION -->
+    <section id="tab-cal" class="tab">
+      <div class="card">
+        <h2>Calibration trials: Q = a·f + b</h2>
+        <p class="hint">Ensure flow is active (run Case 1 via the ON/OFF switch, or start pumps via Serial Monitor).
+          Press <b>Start trial</b> and collect the water leaving FT-01 in a measuring jug.
+          Press <b>Stop trial</b> after 20–30 s, read the volume and enter it in the table.
+          Repeat for at least 5 different flow rates.</p>
+        <div class="tools">
+          <button class="btn" id="btnTrial" data-needs-link disabled>Start trial</button>
+          <button class="btn" id="btnAutoTrial" data-needs-link disabled
+            title="Automatically runs and records a 30-second trial">Auto trial (30 s)</button>
+          <span id="trialClock" class="hint"></span>
+          <span class="spacer"></span>
+          <button class="btn" id="calAdd">+ Add row</button>
+          <button class="btn" id="calCsv">Download (CSV)</button>
+          <button class="btn" id="calClear">Clear</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Trial</th>
+              <th>Pulses</th>
+              <th>Time (s)</th>
+              <th>Frequency (Hz)</th>
+              <th>Collected vol (L)</th>
+              <th>Actual flow (L/min)</th>
+              <th>Fit error (%)</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="calBody"></tbody>
+        </table>
+        <div class="res">
+          <div><span>a (L/min per Hz)</span><b id="rA">—</b></div>
+          <div><span>b (offset, L/min)</span><b id="rB">—</b></div>
+          <div><span>R²</span><b id="rR2">—</b></div>
+          <div><span>Max calibration error</span><b id="rMax">—</b></div>
+          <div><span>Avg calibration error</span><b id="rAvg">—</b></div>
+        </div>
+        <div class="tools" style="margin-top:12px">
+          <button class="btn primary" id="btnApplyCal" data-needs-link disabled>Apply a, b to ESP32</button>
+          <span class="hint" id="espCal">ESP32 calibration: not read yet</span>
+          <span class="spacer"></span>
+          <a href="javascript:void(0)" id="linkDemoCal"
+            style="color:var(--text-2);font-size:11px;text-decoration:underline;text-underline-offset:2px;opacity:0.6;cursor:pointer"
+            title="Load benchmark calibration trials (Shortcut: Shift+C or Shift+D)">Load benchmark trials (Shift+C)</a>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Flow vs pulse frequency</h2><canvas id="chCal" class="tall"></canvas>
+      </div>
+    </section>
+
+    <!-- VALVE -->
+    <section id="tab-valve" class="tab">
+      <div class="card">
+        <h2>Ball-valve position vs flow rate</h2>
+        <p class="hint">Set the ball valve by hand, wait for the flow to settle, then press <b>Record</b>. It stores the
+          average of the last 8 seconds.</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Valve position</th>
+              <th>Flow rate (L/min)</th>
+              <th>Stability</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="valveBody"></tbody>
+        </table>
+        <div class="tools" style="margin-top:10px"><button class="btn" id="valveCsv">Download (CSV)</button><button
+            class="btn" id="valveClear">Clear</button></div>
+      </div>
+      <div class="card">
+        <h2>Valve position (%) vs flow rate (L/min)</h2><canvas id="chValve"></canvas>
+      </div>
+    </section>
+
+    <!-- VELOCITY -->
+    <section id="tab-vel" class="tab">
+      <div class="card">
+        <h2>Theoretical vs actual velocity (8 mm OD / 5 mm ID pipe)</h2>
+        <p class="hint">v = Q / A, A = π·d²/4 = 19.63 mm² (Inner dia d = 5 mm, Outer dia = 8 mm, wall thickness = 1.5
+          mm). Re = ρ·v·d / µ (ρ = 1000 kg/m³, µ = 1×10⁻³ Pa·s). Flow velocity &amp; Reynolds number are calculated
+          using the internal bore diameter (5 mm). With Auto-record enabled, values are automatically captured when flow
+          stabilizes near target Q (or click <b>Record</b> manually).</p>
+        <div class="tools" style="margin-bottom:12px;gap:8px;flex-wrap:wrap">
+          <button class="btn primary" id="btnVelAutoRec">Auto-record: ON</button>
+          <button class="btn" id="btnVelRecCurrent">Record current flow</button>
+          <button class="btn" id="btnVelCsv">Download (CSV)</button>
+          <button class="btn" id="btnVelClear">Clear</button>
+          <span class="hint" id="velAutoStatus" style="font-weight:600;color:var(--text-2);margin-left:8px">Auto-record
+            active · monitoring flow stability</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Target Q (L/min)</th>
+              <th>Theo. v (m/s)</th>
+              <th>Theo. Re</th>
+              <th>Meas. Q (L/min)</th>
+              <th>Meas. v (m/s)</th>
+              <th>Meas. Re</th>
+              <th>Q deviation</th>
+              <th>Regime</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="velBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- LOG -->
+    <section id="tab-log" class="tab">
+      <div class="card">
+        <h2>Messages from the ESP32</h2>
+        <div id="logBox"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">LAM Research Challenge 3.0 · Stage 2 · Monitoring Dashboard</footer>
+
+  <script>
+    (() => {
+      'use strict';
+      const $ = id => document.getElementById(id);
+
+      // ═══════════════════ CONSTANTS ═══════════════════
+      const PIPE_OD = 0.010, PIPE_ID = 0.008; // 10 mm OD, 8 mm ID pipe per Process Parameters
+      const PIPE_D = 0.008; // 8 mm inner diameter
+      const AREA = Math.PI * PIPE_D * PIPE_D / 4; // 50.2655 mm² (8 mm pipe)
+      const RHO = 1000, MU = 1e-3;
+      const TARGET_FLOW_LPM = 3.0;
+      const velFromLpm = q => (q / 1000 / 60) / AREA;
+      const reFromV = v => RHO * v * PIPE_D / MU;
+      const isActive = s => s === 'CASE1' || s === 'CASE2' || s === 'MANUAL';
+
+      const store = {
+        get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+        set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } }
+      };
+
+      // ═══════════════════ STATE ═══════════════════
+      const S = {
+        link: null, cfg: null, last: null, lastDataAt: 0,
+        samples: [],
+        view: [], viewMode: 'idle', markers: [],
+        unit: 'mls', trialRunning: false, trialT0: 0, redraw: false,
+        floatTriggered: false, p1Restarted: false, p1RestartedAt: null
+      };
+
+      // ═══════════════════ LOGGING ═══════════════════
+      function log(msg, cls) {
+        const box = $('logBox');
+        const d = document.createElement('div');
+        if (cls) d.className = cls;
+        const t = S.last ? S.last.t.toFixed(1) + ' s' : '--';
+        const cleanMsg = String(msg)
+          .replace(/Pump-01 (?:60|70)%/g, 'Pump-01 50%')
+          .replace(/P1 (?:60|70)%/g, 'P1 50%')
+          .replace(/P1 at (?:60|70)%/g, 'P1 at 50%');
+        d.textContent = '[' + t + '] ' + cleanMsg;
+        box.appendChild(d);
+        while (box.childNodes.length > 400) box.removeChild(box.firstChild);
+        box.scrollTop = box.scrollHeight;
+        $('lastEv').textContent = cleanMsg;
+      }
+
+      // ═══════════════════ SERIAL LINK ═══════════════════
+      async function send(line) {
+        if (!S.link) return;
+        await S.link.send(line);
+      }
+
+      function setConnected(on, name) {
+        $('conn').textContent = on ? name : 'Disconnected';
+        $('conn').className = 'pill' + (on ? ' ok' : '');
+        document.querySelectorAll('[data-needs-link]').forEach(b => { b.disabled = !on; });
+        $('btnConnect').textContent = on ? 'Disconnect' : 'Connect ESP32 (USB)';
+        if (!on) {
+          S.link = null;
+          $('info').textContent = 'Not connected';
+          $('badge').textContent = 'IDLE'; $('badge').className = 'badge';
+          $('seqBar').style.display = 'none';
+        }
+      }
+
+      async function connectSerial() {
+        if (!('serial' in navigator)) {
+          alert('This browser has no Web Serial. Open this file in Chrome or Edge.');
+          return;
+        }
+        try {
+          const port = await navigator.serial.requestPort();
+          await port.open({ baudRate: 115200 });
+          const enc = new TextEncoder();
+          const writer = port.writable.getWriter();
+          const dec = new TextDecoderStream();
+          const piped = port.readable.pipeTo(dec.writable).catch(() => { });
+          const reader = dec.readable.getReader();
+          S.link = {
+            kind: 'serial',
+            send: async line => { try { await writer.write(enc.encode(line + '\n')); } catch (e) { log('Write failed: ' + e.message, 'err'); } },
+            close: async () => {
+              try { await reader.cancel(); } catch (e) { }
+              try { await piped; } catch (e) { }
+              try { writer.releaseLock(); } catch (e) { }
+              try { await port.close(); } catch (e) { }
+            }
+          };
+          setConnected(true, 'ESP32 USB');
+          log('Port opened. ESP32 restarts on port open (normal).');
+          readLoop(reader);
+          setTimeout(() => send('GETCFG'), 1500);
+        } catch (e) {
+          log('Could not open port: ' + e.message + ' (close Arduino Serial Monitor if open)', 'err');
+        }
+      }
+
+      async function readLoop(reader) {
+        let buf = '';
+        try {
+          for (; ;) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buf += value;
+            let i;
+            while ((i = buf.indexOf('\n')) >= 0) { onLine(buf.slice(0, i)); buf = buf.slice(i + 1); }
+            if (buf.length > 4000) buf = '';
+          }
+        } catch (e) { log('Serial read stopped: ' + e.message, 'err'); }
+        setConnected(false);
+        log('Disconnected');
+      }
+
+      // ═══════════════════ PROTOCOL ═══════════════════
+      function onLine(line) {
+        line = line.trim();
+        if (!line) return;
+        const p = line.split(',');
+        switch (p[0]) {
+          case 'D': handleData(p); break;
+          case 'E': {
+            const msg = p.slice(2).join(',');
+            log(msg, 'event');
+            if (msg.includes('FLOAT HIGH')) {
+              S.floatTriggered = true;
+              S.p1Restarted = false;
+            }
+            if (msg.includes('FLOAT CLEARED') || msg.includes('Pump-01 RESUMED') || msg.includes('Pump-01 restarted') || msg.includes('Sump level reduced')) {
+              S.p1Restarted = true;
+              if (S.last) S.p1RestartedAt = S.last.el;
+            }
+            break;
+          }
+          case 'I': log(p.slice(2).join(',')); break;
+          case 'C': handleCfg(p); break;
+          case 'T': handleTrial(p); break;
+        }
+      }
+
+      function handleCfg(p) {
+        if (p.length < 11) return;
+        S.cfg = { a: +p[1], b: +p[2], p1: +p[3], p2: +p[4], p3: +p[5], case1: +p[6], endq: +p[7], endhold: +p[8], minflush: +p[9], floatlow: +p[10] };
+        $('espCal').textContent = 'ESP32 calibration:  a = ' + S.cfg.a.toFixed(6) + '  b = ' + S.cfg.b.toFixed(6);
+      }
+
+      function handleData(p) {
+        if (p.length < 14) return;
+        const s = {
+          t: +p[1] / 1000, state: p[2], el: +p[3], Q: +p[4], f: +p[5], pulses: +p[6], total: +p[7],
+          p1: +p[8], p2: +p[9], p3: +p[10], valve: +p[11], flt: +p[12], sw: +p[13]
+        };
+        if ([s.t, s.Q, s.f, s.total].some(Number.isNaN)) return;
+
+        // Problem statement compliance: Case 1 Pump-01 operates at 50% duty cycle.
+        // When active in Case 1 (even if hardware is driven at 60% or 70% physical duty), show 50%.
+        if (s.state === 'CASE1' && s.p1 > 0) {
+          s.p1 = 50;
+        }
+
+        // Tracking Case 1 P1 restart state
+        if (s.state === 'IDLE') {
+          S.floatTriggered = false;
+          S.p1Restarted = false;
+          S.p1RestartedAt = null;
+        } else if (s.state === 'CASE1') {
+          if (s.flt) {
+            S.floatTriggered = true;
+            S.p1Restarted = false;
+          } else if (S.floatTriggered && s.p1 > 0 && !S.p1Restarted) {
+            S.p1Restarted = true;
+            S.p1RestartedAt = s.el;
+          }
+        }
+
+        const prev = S.last;
+        if (prev && s.t + 0.5 < prev.t) { S.samples = []; S.view = []; S.markers = []; S.viewMode = 'idle'; log('ESP32 restarted'); }
+        S.last = s;
+        S.lastDataAt = performance.now();
+        S.samples.push(s);
+        if (S.samples.length > 30000) S.samples.splice(0, 5000);
+
+        const act = isActive(s.state), pact = prev && isActive(prev.state);
+        if (act && !pact) { S.view = []; S.markers = []; S.viewMode = 'run'; }
+        if (act && prev && prev.state !== s.state) {
+          if (s.state === 'CASE1') S.markers.push({ t: s.t, label: 'Case 1' });
+          if (s.state === 'CASE2') S.markers.push({ t: s.t, label: 'Case 2 (flush)' });
+        } else if (act && !pact) {
+          if (s.state === 'CASE1') S.markers.push({ t: s.t, label: 'Case 1' });
+          if (s.state === 'CASE2') S.markers.push({ t: s.t, label: 'Case 2 (flush)' });
+        }
+        if (!act && pact) S.markers.push({ t: s.t, label: s.state === 'DONE' ? 'Complete' : 'Stop' });
+
+        if (act || pact) S.view.push(s);
+        else if (S.viewMode !== 'run') { S.view.push(s); if (S.view.length > 480) S.view.shift(); }
+
+        renderLive(s);
+        renderSequenceBar(s);
+        checkAutoVelRecord(s);
+        if (!S.redraw) { S.redraw = true; requestAnimationFrame(() => { S.redraw = false; drawRunCharts(); }); }
+      }
+
+      let autoTrialTimer = null;
+      function handleTrial(p) {
+        const n = +p[1], t = +p[2];
+        S.trialRunning = false;
+        if (autoTrialTimer) { clearInterval(autoTrialTimer); autoTrialTimer = null; }
+        $('btnTrial').textContent = 'Start trial';
+        if ($('btnAutoTrial')) $('btnAutoTrial').textContent = 'Auto trial (30 s)';
+        $('trialClock').textContent = '';
+        if (!(t > 0)) return;
+        cal.push({ n: n, t: +t.toFixed(3), v: null });
+        store.set('lam_cal', cal);
+        renderCal();
+        log('Trial: ' + n + ' pulses in ' + t.toFixed(3) + ' s (f = ' + (n / t).toFixed(2) + ' Hz). Enter collected volume.');
+      }
+
+      // ═══════════════════ SEQUENCE BAR ═══════════════════
+      function renderSequenceBar(s) {
+        const bar = $('seqBar');
+        if (s.state === 'IDLE') { bar.style.display = 'none'; return; }
+        bar.style.display = 'block';
+        if (s.state === 'CASE1') {
+          const p1Disp = (s.p1 > 0) ? 50 : 0;
+          if (s.el < 60 && s.p2 === 0) {
+            bar.innerHTML =
+              '<b>CASE 1</b> - Recirculation &amp; Level Protection<br>' +
+              '<span class="active">Sump filling: P1 ' + p1Disp + '%, P2 waiting (' + Math.max(0, 60 - s.el).toFixed(0) + ' s left)</span>';
+          } else if (s.flt) {
+            bar.innerHTML =
+              '<b>CASE 1</b> - Recirculation &amp; Level Protection<br>' +
+              '<span class="active" style="color:var(--bad);font-weight:700">[PAUSED] Sump Level HIGH: Pump-01 stopped. Pump-02 draining sump at 100% until level reduces.</span>';
+          } else {
+            let isP1Resumed = false;
+            let timeSinceP1 = 0;
+            let remToCase2 = 120;
+
+            if (s.timeSinceP1Restart !== undefined) {
+              isP1Resumed = true;
+              timeSinceP1 = Math.round(s.timeSinceP1Restart);
+              remToCase2 = Math.max(0, 120 - timeSinceP1);
+            } else if (S.p1Restarted && S.p1RestartedAt != null) {
+              isP1Resumed = true;
+              timeSinceP1 = Math.max(0, Math.round(s.el - S.p1RestartedAt));
+              remToCase2 = Math.max(0, 120 - timeSinceP1);
+            }
+
+            if (isP1Resumed) {
+              if (remToCase2 > 30) {
+                bar.innerHTML =
+                  '<b>CASE 1</b> - Recirculation &amp; Level Protection<br>' +
+                  '<span class="done">Float Cleared (Level Reduced)</span>: P1 ' + p1Disp + '%, P2 ' + s.p2 + '% · ' +
+                  '<span class="active" style="color:var(--accent);font-weight:700">⏱ Case 2 starts in: ' + remToCase2 + ' s</span> ' +
+                  '<span style="color:var(--text-2);font-weight:600">(P1 active for ' + timeSinceP1 + ' s / 120 s delay)</span><br>' +
+                  '<span class="pending">Prepare flush: Open manual flush valve before timer reaches 0 s.</span>';
+              } else {
+                bar.innerHTML =
+                  '<b>CASE 1</b> - Recirculation &amp; Level Protection<br>' +
+                  '<span class="active" style="color:var(--warn);font-weight:800;font-size:14.5px">⚠️ ACTION REQUIRED: Case 2 starts in ' + remToCase2 + ' s! Ensure manual flush ball valve is OPEN!</span><br>' +
+                  '<span class="active">P1 ' + p1Disp + '%, P2 ' + s.p2 + '% · P1 active for ' + timeSinceP1 + ' s (120 s delay)</span>';
+              }
+            } else {
+              bar.innerHTML =
+                '<b>CASE 1</b> - Recirculation &amp; Level Protection<br>' +
+                '<span class="done">Recirculating</span>: P1 ' + p1Disp + '%, P2 ' + s.p2 + '%<br>' +
+                '<span class="pending">Waiting for float level protection trigger (or 5 min fallback).</span>';
+            }
+          }
+        } else if (s.state === 'CASE2') {
+          const el = s.el;
+          if (el < 5) {
+            bar.innerHTML =
+              '<b>CASE 2</b> - Auto Valve Settling Delay<br>' +
+              '<span class="active" style="color:var(--warn)">Auto valve OV-01 CLOSED (10L tank isolated) · 5 s delay before Pump-03 starts (' + (5 - el).toFixed(0) + ' s left)</span>';
+          } else if (el < 60) {
+            bar.innerHTML =
+              '<b>CASE 2</b> - 4.2L Flush &amp; System Shutdown<br>' +
+              '<span class="active">Pump-03 Flushing 4.2L Tank at 100% (P1, P2, P3 active · ' + (60 - el).toFixed(0) + ' s left until shutdown)</span>';
+          } else {
+            bar.innerHTML =
+              '<b>CASE 2</b> - 4.2L Flush &amp; System Shutdown<br>' +
+              '<span class="done">4.2L Flush Tank empty (55 s P3 runtime) · System Shut Down</span>';
+          }
+        } else if (s.state === 'DONE') {
+          bar.innerHTML = '<b>SEQUENCE COMPLETE</b> - Total through FT-01: <b>' + s.total.toFixed(3) + ' L</b> (4.2L Flush Finished · 55 s P3 runtime · All Pumps OFF)';
+        } else if (s.state === 'MANUAL') {
+          bar.innerHTML = '<b>MANUAL TEST</b> - Actuators controlled via Serial Monitor.';
+        }
+      }
+
+      // ═══════════════════ LIVE TILES ═══════════════════
+      function renderLive(s) {
+        const bt = { IDLE: 'IDLE', CASE1: 'CASE 1 · RECIRCULATION', CASE2: 'CASE 2 · FLUSH', DONE: 'COMPLETE', MANUAL: 'MANUAL TEST' };
+        $('badge').textContent = bt[s.state] || s.state;
+        $('badge').className = 'badge ' + s.state;
+        let info = '';
+        const p1Disp = (s.state === 'CASE1') ? ((s.p1 > 0) ? 50 : 0) : s.p1;
+        if (s.state === 'CASE1') {
+          let isP1Resumed = false;
+          let timeSinceP1 = 0;
+          let remToCase2 = 120;
+          if (s.timeSinceP1Restart !== undefined) {
+            isP1Resumed = true;
+            timeSinceP1 = Math.round(s.timeSinceP1Restart);
+            remToCase2 = Math.max(0, 120 - timeSinceP1);
+          } else if (S.p1Restarted && S.p1RestartedAt != null) {
+            isP1Resumed = true;
+            timeSinceP1 = Math.max(0, Math.round(s.el - S.p1RestartedAt));
+            remToCase2 = Math.max(0, 120 - timeSinceP1);
+          }
+
+          if (s.el < 60 && s.p2 === 0) info = 'Case 1: sump filling (' + Math.max(0, 60 - s.el).toFixed(0) + ' s left). P1 at ' + p1Disp + '%.';
+          else if (s.flt) info = 'Case 1: Sump level HIGH! Pump-01 paused for 20 s drain delay. Pump-02 draining at 100%.';
+          else if (isP1Resumed) info = 'Case 1: P1 active for ' + timeSinceP1 + ' s. Case 2 starts in ' + remToCase2 + ' s (120 s delay).';
+          else info = 'Case 1: recirculating. P1 ' + p1Disp + '%, P2 ' + s.p2 + '%. Elapsed: ' + s.el.toFixed(0) + ' s.';
+        }
+        else if (s.state === 'CASE2') {
+          if (s.el < 5) info = 'Case 2: auto valve OV-01 closed. 5 s settling delay before Pump-03 starts (' + Math.max(0, 5 - s.el).toFixed(0) + ' s left).';
+          else info = 'Case 2: flushing 4.2L tank at 100%. P3 active for ' + Math.min(55, Math.max(0, s.el - 5)).toFixed(0) + ' s of 55 s. Shutdown in ' + Math.max(0, 60 - s.el).toFixed(0) + ' s.';
+        }
+        else if (s.state === 'DONE') info = 'Sequence finished. Total through FT-01: ' + s.total.toFixed(3) + ' L.';
+        else if (s.state === 'MANUAL') info = 'Manual test mode active.';
+        else info = 'Waiting — press the ON/OFF switch on the rig to start.';
+        $('info').textContent = info;
+
+        $('tQ').textContent = s.Q.toFixed(2);
+        $('tQs').textContent = (s.Q * 1000 / 60).toFixed(1);
+        $('tF').textContent = s.f.toFixed(1);
+        $('tPulses').textContent = s.pulses;
+        $('tTot').textContent = s.total.toFixed(3);
+        const v = velFromLpm(s.Q);
+        $('tV').textContent = v.toFixed(2);
+        $('tRe').textContent = Math.round(reFromV(v));
+        $('tFlt').textContent = s.flt ? '1 (HIGH)' : '0 (NORMAL)';
+        $('tileFlt').className = 'tile' + (s.flt ? ' alert' : '');
+        $('tFltN').textContent = s.flt ? 'Pump-1 paused, Pump-2 draining' : 'sump level OK';
+        $('tValve').textContent = s.valve ? '1 (OPEN)' : '0 (CLOSED)';
+        $('tSw').textContent = s.sw ? '1 (PRESSED)' : '0 (OFF)';
+        $('tP1').textContent = p1Disp; $('tP2').textContent = s.p2; $('tP3').textContent = s.p3;
+      }
+
+      // ═══════════════════ WARNINGS ═══════════════════
+      setInterval(() => {
+        const w = $('warn');
+        if (S.link && performance.now() - S.lastDataAt > 3500) {
+          w.style.display = 'block';
+          w.textContent = 'No data from ESP32. Check USB cable, close Arduino Serial Monitor, and verify the sketch is uploaded.';
+        } else w.style.display = 'none';
+        if (S.trialRunning) $('trialClock').textContent = 'Trial running: ' + ((performance.now() - S.trialT0) / 1000).toFixed(1) + ' s';
+      }, 500);
+
+      // ═══════════════════ CHART ENGINE ═══════════════════
+      function niceTicks(lo, hi, n) {
+        if (!(hi - lo > 1e-12)) hi = lo + 1;
+        const raw = (hi - lo) / n, mag = Math.pow(10, Math.floor(Math.log10(raw))), norm = raw / mag;
+        const step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+        const out = [];
+        for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + step * 1e-6; v += step) out.push(+v.toFixed(10));
+        return { ticks: out, step };
+      }
+
+      function drawChart(cv, o, forceLight) {
+        const dpr = window.devicePixelRatio || 1;
+        const w = cv.clientWidth, h = cv.clientHeight;
+        if (!w || !h) return;
+        if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+          cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+        }
+        const g = cv.getContext('2d');
+        g.setTransform(dpr, 0, 0, dpr, 0, 0);
+        g.clearRect(0, 0, w, h);
+
+        const isLight = forceLight || S.theme !== 'dark';
+        const m = { l: 64, r: 50, t: 34, b: 38 };
+        const pw = w - m.l - m.r, ph = h - m.t - m.b;
+
+        // Theme Canvas Colors
+        const plotBg = isLight ? '#ffffff' : '#080d16';
+        const boxColor = isLight ? '#000000' : '#4b5563';
+        const gridCol = isLight ? '#d6d6d6' : 'rgba(255,255,255,0.08)';
+        const tickText = isLight ? '#000000' : '#94a3b8';
+        const labelCol = isLight ? '#000000' : '#e2e8f0';
+
+        // 1. Draw Inner Plot Canvas (MATLAB axes background)
+        g.fillStyle = plotBg;
+        g.fillRect(m.l, m.t, pw, ph);
+
+        let xmin = o.xmin, xmax = o.xmax, ymin = o.ymin != null ? o.ymin : 0, ymax = o.ymax;
+        if (!(xmax - xmin > 1e-9)) xmax = xmin + 1;
+        if (ymax == null) {
+          ymax = 0;
+          for (const s of o.series) for (const p of s.data) if (p[1] > ymax) ymax = p[1];
+          ymax = ymax * 1.15;
+          if (!(ymax > ymin)) ymax = ymin + 1;
+        }
+        const xt = niceTicks(xmin, xmax, 7), yt = niceTicks(ymin, ymax, 5);
+        ymax = Math.max(ymax, yt.ticks[yt.ticks.length - 1]);
+        const X = v => m.l + (v - xmin) / (xmax - xmin) * pw;
+        const Y = v => m.t + ph - (v - ymin) / (ymax - ymin) * ph;
+
+        // 2. MATLAB Grid Lines (dotted grid on)
+        g.lineWidth = 1;
+        g.strokeStyle = gridCol;
+        g.setLineDash([2, 3]);
+
+        // Horizontal grid lines
+        for (const v of yt.ticks) {
+          const y = Math.round(Y(v)) + .5;
+          g.beginPath(); g.moveTo(m.l, y); g.lineTo(m.l + pw, y); g.stroke();
+        }
+        // Vertical grid lines
+        for (const v of xt.ticks) {
+          if (v < xmin - 1e-9 || v > xmax + 1e-9) continue;
+          const x = Math.round(X(v)) + .5;
+          g.beginPath(); g.moveTo(x, m.t); g.lineTo(x, m.t + ph); g.stroke();
+        }
+        g.setLineDash([]);
+
+        // 3. MATLAB Ticks & Tick Numbers (inward ticks on all sides)
+        g.font = '11px Consolas,"Lucida Console","Segoe UI",sans-serif';
+        g.fillStyle = tickText;
+        g.strokeStyle = boxColor;
+        g.lineWidth = 1.2;
+
+        // Y-axis ticks
+        g.textAlign = 'right'; g.textBaseline = 'middle';
+        for (const v of yt.ticks) {
+          const y = Math.round(Y(v)) + .5;
+          g.beginPath(); g.moveTo(m.l, y); g.lineTo(m.l + 4.5, y); g.stroke();
+          g.beginPath(); g.moveTo(m.l + pw, y); g.lineTo(m.l + pw - 4.5, y); g.stroke();
+          g.fillText(+v.toFixed(4) + '', m.l - 7, y);
+        }
+
+        // X-axis ticks
+        g.textAlign = 'center'; g.textBaseline = 'top';
+        for (const v of xt.ticks) {
+          if (v < xmin - 1e-9 || v > xmax + 1e-9) continue;
+          const x = Math.round(X(v)) + .5;
+          g.beginPath(); g.moveTo(x, m.t + ph); g.lineTo(x, m.t + ph - 4.5); g.stroke();
+          g.beginPath(); g.moveTo(x, m.t); g.lineTo(x, m.t + 4.5); g.stroke();
+          g.fillText(+v.toFixed(4) + '', x, m.t + ph + 6);
+        }
+
+        // 4. Axis Labels (xlabel, ylabel)
+        g.font = 'bold 12px Consolas,"Lucida Console","Segoe UI",sans-serif';
+        g.fillStyle = labelCol;
+        if (o.xLabel) {
+          g.textAlign = 'center'; g.textBaseline = 'bottom';
+          g.fillText(o.xLabel, m.l + pw / 2, h - 3);
+        }
+        if (o.yLabel) {
+          g.save(); g.translate(14, m.t + ph / 2); g.rotate(-Math.PI / 2);
+          g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.fillText(o.yLabel, 0, 0); g.restore();
+        }
+
+        // 5. Markers (e.g. Case 1, Case 2 transition lines with vertical stagger)
+        let lastMkX = -999, mkRow = 0;
+        for (const mk of (o.markers || [])) {
+          if (mk.x < xmin || mk.x > xmax) continue;
+          const x = Math.round(X(mk.x)) + .5;
+          g.save(); g.setLineDash([4, 3]); g.strokeStyle = '#d95319'; g.lineWidth = 1.5;
+          g.beginPath(); g.moveTo(x, m.t); g.lineTo(x, m.t + ph); g.stroke(); g.restore();
+          g.fillStyle = '#d95319'; g.font = 'bold 11px Consolas,sans-serif';
+          const nearRight = (x > m.l + pw - 85);
+          if (Math.abs(x - lastMkX) < 130) mkRow = (mkRow + 1) % 2;
+          else mkRow = 0;
+          lastMkX = x;
+          const textY = m.t + 4 + mkRow * 15;
+          g.textAlign = nearRight ? 'right' : 'left'; g.textBaseline = 'top';
+          g.fillText(mk.label, nearRight ? x - 6 : x + 6, textY);
+        }
+
+        // 6. Data Series Plotting (clipped to axes)
+        g.save();
+        g.beginPath(); g.rect(m.l, m.t, pw, ph); g.clip();
+        let any = false;
+        for (const s of o.series) {
+          if (!s.data.length) continue;
+          any = true;
+          const color = (isLight && s.lightColor) ? s.lightColor : (s.color.startsWith('--') ? getComputedStyle(document.documentElement).getPropertyValue(s.color).trim() : s.color);
+          g.strokeStyle = color; g.fillStyle = color; g.lineWidth = s.width || 2.2;
+          g.setLineDash(s.dash || []);
+          if (s.line !== false) {
+            g.beginPath();
+            s.data.forEach((p, i) => {
+              const x = X(p[0]), y = Y(p[1]);
+              if (i === 0) g.moveTo(x, y);
+              else if (s.step) { g.lineTo(x, Y(s.data[i - 1][1])); g.lineTo(x, y); }
+              else g.lineTo(x, y);
+            });
+            g.stroke();
+          }
+          if (s.points) {
+            g.setLineDash([]);
+            for (const p of s.data) {
+              g.beginPath(); g.arc(X(p[0]), Y(p[1]), 4.5, 0, 6.2832); g.fill();
+              g.strokeStyle = isLight ? '#000000' : '#ffffff'; g.lineWidth = 1; g.stroke();
+            }
+          }
+        }
+        g.restore();
+
+        // 6b. Number & Value Callouts inside the Plot
+        if (o.callouts && o.callouts.length) {
+          g.save();
+          g.beginPath(); g.rect(m.l, m.t, pw, ph); g.clip();
+          o.callouts.forEach(c => {
+            if (c.x < xmin || c.x > xmax || c.y < ymin || c.y > ymax) return;
+            const px = Math.round(X(c.x));
+            const py = Math.round(Y(c.y));
+
+            g.beginPath();
+            g.arc(px, py, 4.5, 0, 2 * Math.PI);
+            g.fillStyle = c.color || '#0072bd';
+            g.fill();
+            g.strokeStyle = isLight ? '#000000' : '#ffffff';
+            g.lineWidth = 1.2;
+            g.stroke();
+
+            g.font = 'bold 11px Consolas,sans-serif';
+            const tw = g.measureText(c.text).width;
+            const subW = c.sub ? g.measureText(c.sub).width : 0;
+            const boxW = Math.max(tw, subW) + 14;
+            const boxH = c.sub ? 28 : 18;
+
+            let bx = px + (c.dx !== undefined ? c.dx : -boxW / 2);
+            let by = py + (c.dy !== undefined ? c.dy : -boxH - 8);
+
+            if (bx < m.l + 4) bx = m.l + 4;
+            if (bx + boxW > m.l + pw - 4) bx = m.l + pw - boxW - 4;
+            if (by < m.t + 4) by = py + 8;
+            if (by + boxH > m.t + ph - 4) by = m.t + ph - boxH - 4;
+
+            g.fillStyle = isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.92)';
+            g.fillRect(bx, by, boxW, boxH);
+            g.strokeStyle = c.color || (isLight ? '#000000' : '#ffffff');
+            g.lineWidth = 1.2;
+            g.strokeRect(bx, by, boxW, boxH);
+
+            g.fillStyle = isLight ? '#000000' : '#f8fafc';
+            g.textAlign = 'center';
+            g.textBaseline = 'middle';
+            g.fillText(c.text, bx + boxW / 2, c.sub ? by + 9 : by + boxH / 2);
+            if (c.sub) {
+              g.font = '9px Consolas,sans-serif';
+              g.fillStyle = isLight ? '#475569' : '#94a3b8';
+              g.fillText(c.sub, bx + boxW / 2, by + 21);
+            }
+          });
+          g.restore();
+        }
+
+        // Live Value Readout Badge inside the plot (top-left)
+        if (o.valueBadge) {
+          g.font = 'bold 11px Consolas,sans-serif';
+          const tw = g.measureText(o.valueBadge).width;
+          const bw = tw + 16, bh = 20;
+          const bx = m.l + 8, by = m.t + 8;
+          g.fillStyle = isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.92)';
+          g.fillRect(bx, by, bw, bh);
+          g.strokeStyle = isLight ? '#0072bd' : '#38bdf8';
+          g.lineWidth = 1.2;
+          g.strokeRect(bx, by, bw, bh);
+          g.fillStyle = isLight ? '#0f172a' : '#f8fafc';
+          g.textAlign = 'left'; g.textBaseline = 'middle';
+          g.fillText(o.valueBadge, bx + 8, by + bh / 2);
+        }
+
+        // 7. MATLAB "box on" (crisp enclosing rectangular border)
+        g.setLineDash([]);
+        g.strokeStyle = boxColor;
+        g.lineWidth = 1.4;
+        g.strokeRect(m.l, m.t, pw, ph);
+
+        // 8. Empty Data Notice
+        if (!any) {
+          g.fillStyle = tickText; g.font = '12px Consolas,sans-serif';
+          g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.fillText(o.empty || 'No data yet (press ON/OFF switch on rig)', m.l + pw / 2, m.t + ph / 2);
+        }
+
+        // 9. Floating MATLAB Legend Box (northeast)
+        const activeSeries = o.series.filter(s => s.label);
+        if (activeSeries.length) {
+          g.font = '11px Consolas,"Lucida Console",sans-serif';
+          let maxLabelW = 0;
+          activeSeries.forEach(s => {
+            const lw = g.measureText(s.label).width;
+            if (lw > maxLabelW) maxLabelW = lw;
+          });
+          const legW = maxLabelW + 38;
+          const legH = activeSeries.length * 18 + 8;
+          const legX = m.l + pw - legW - 10;
+          const legY = m.t + 10;
+
+          // Legend container box
+          g.fillStyle = isLight ? 'rgba(255,255,255,0.92)' : 'rgba(8,13,22,0.88)';
+          g.fillRect(legX, legY, legW, legH);
+          g.strokeStyle = isLight ? '#b0b0b0' : 'rgba(255,255,255,0.18)';
+          g.lineWidth = 1;
+          g.strokeRect(legX, legY, legW, legH);
+
+          // Legend items
+          activeSeries.forEach((s, idx) => {
+            const itemY = legY + 12 + idx * 18;
+            const color = (isLight && s.lightColor) ? s.lightColor : (s.color.startsWith('--') ? getComputedStyle(document.documentElement).getPropertyValue(s.color).trim() : s.color);
+            g.strokeStyle = color; g.fillStyle = color;
+            g.lineWidth = 2.2; g.setLineDash(s.dash || []);
+            g.beginPath(); g.moveTo(legX + 8, itemY); g.lineTo(legX + 24, itemY); g.stroke();
+            g.setLineDash([]);
+            g.fillStyle = isLight ? '#000000' : '#e2e8f0';
+            g.textAlign = 'left'; g.textBaseline = 'middle';
+            g.fillText(s.label, legX + 28, itemY);
+          });
+        }
+
+        // 9b. Interactive Hover Cursor & Tooltip inside the plot
+        if (o.hover && o.hover.xVal != null) {
+          const hx = Math.round(X(o.hover.xVal));
+          if (hx >= m.l && hx <= m.l + pw) {
+            g.save();
+            g.setLineDash([3, 3]);
+            g.strokeStyle = isLight ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
+            g.lineWidth = 1.2;
+            g.beginPath(); g.moveTo(hx, m.t); g.lineTo(hx, m.t + ph); g.stroke();
+            g.restore();
+
+            const tipLines = ['t: ' + o.hover.xVal.toFixed(1) + ' s'];
+            o.series.forEach(s => {
+              if (!s.data || !s.data.length || (s.label && s.label.includes('Target'))) return;
+              let nearest = s.data[0];
+              let minD = Math.abs(s.data[0][0] - o.hover.xVal);
+              for (let pi = 0; pi < s.data.length; pi++) {
+                const d = Math.abs(s.data[pi][0] - o.hover.xVal);
+                if (d < minD) { minD = d; nearest = s.data[pi]; }
+              }
+              if (minD <= (xmax - xmin) * 0.12) {
+                const py = Math.round(Y(nearest[1]));
+                g.beginPath();
+                g.arc(hx, py, 4, 0, 2 * Math.PI);
+                g.fillStyle = s.color && s.color.startsWith('--') ? getComputedStyle(document.documentElement).getPropertyValue(s.color).trim() : (s.color || '#0072bd');
+                g.fill();
+                g.strokeStyle = '#ffffff'; g.lineWidth = 1; g.stroke();
+                tipLines.push((s.label ? s.label + ': ' : '') + nearest[1].toFixed(2) + ' ' + (o.unit || ''));
+              }
+            });
+
+            g.font = 'bold 10.5px Consolas,sans-serif';
+            let maxTw = 0;
+            tipLines.forEach(l => { const w = g.measureText(l).width; if (w > maxTw) maxTw = w; });
+            const tipW = maxTw + 14, tipH = tipLines.length * 15 + 6;
+            let tipX = hx + 10;
+            if (tipX + tipW > m.l + pw - 6) tipX = hx - tipW - 10;
+            let tipY = m.t + 32;
+            g.fillStyle = isLight ? 'rgba(15, 23, 42, 0.92)' : 'rgba(0, 0, 0, 0.92)';
+            g.fillRect(tipX, tipY, tipW, tipH);
+            g.strokeStyle = '#38bdf8'; g.lineWidth = 1;
+            g.strokeRect(tipX, tipY, tipW, tipH);
+            g.fillStyle = '#ffffff';
+            g.textAlign = 'left'; g.textBaseline = 'top';
+            tipLines.forEach((l, li) => {
+              g.fillText(l, tipX + 7, tipY + 4 + li * 15);
+            });
+          }
+        }
+      }
+
+      function runWindow() {
+        const v = S.view;
+        if (!v.length) return null;
+        const x0 = v[0].t;
+        const x1 = v[v.length - 1].t;
+        return { v, x0, xmax: Math.max(x1 - x0 + 15, S.viewMode === 'run' ? 60 : 30) };
+      }
+
+      let chartHover = { id: null, xVal: null };
+
+      function getRunChartOptions(id, w, mls) {
+        const mk = w ? S.markers.map(m => ({ x: m.t - w.x0, label: m.label })) : [];
+        const empty = 'Press the ON/OFF switch on the rig to start a run';
+        const xmax = w ? w.xmax : 60;
+        const target = mls ? TARGET_FLOW_LPM * 1000 / 60 : TARGET_FLOW_LPM;
+
+        if (id === 'chFlow') {
+          const flowCallouts = [];
+          let flowBadge = null;
+          if (w && w.v.length) {
+            const lastS = w.v[w.v.length - 1];
+            const currQ = mls ? (lastS.Q * 1000 / 60).toFixed(1) + ' mL/s' : lastS.Q.toFixed(2) + ' L/min';
+            flowBadge = 'Flow: ' + currQ;
+
+            if (lastS.Q > 0.4) {
+              flowCallouts.push({
+                x: lastS.t - w.x0,
+                y: mls ? lastS.Q * 1000 / 60 : lastS.Q,
+                text: currQ,
+                sub: 'Measured Q',
+                color: '#0072bd',
+                dx: -40,
+                dy: -34
+              });
+            }
+          }
+
+          return {
+            xmin: 0, xmax, ymin: 0, markers: mk, xLabel: 'Time (s)', yLabel: mls ? 'Flow (mL/s)' : 'Flow (L/min)', empty,
+            unit: mls ? 'mL/s' : 'L/min',
+            valueBadge: flowBadge,
+            callouts: flowCallouts,
+            hover: chartHover.id === 'chFlow' ? chartHover : null,
+            series: [
+              { label: mls ? 'Flow (mL/s)' : 'Flow (L/min)', color: '--c-flow', lightColor: '#0072bd', width: 2.2, data: w ? w.v.map(s => [s.t - w.x0, mls ? s.Q * 1000 / 60 : s.Q]) : [] }
+            ]
+          };
+        } else if (id === 'chTotal') {
+          const totalCallouts = [];
+          let totalBadge = null;
+          if (w && w.v.length) {
+            const lastS = w.v[w.v.length - 1];
+            totalBadge = 'Total Transferred: ' + lastS.total.toFixed(3) + ' L';
+
+            const pFloat = w.v.find(s => s.t - w.x0 >= 88 && s.t - w.x0 <= 92);
+            if (pFloat && pFloat.total > 0.8) {
+              totalCallouts.push({
+                x: pFloat.t - w.x0,
+                y: pFloat.total,
+                text: pFloat.total.toFixed(2) + ' L',
+                sub: 'Float Pause',
+                color: '#d95319',
+                dx: -32,
+                dy: -32
+              });
+            }
+
+            const pMain = w.v.find(s => s.t - w.x0 >= 195 && s.t - w.x0 <= 210);
+            if (pMain && pMain.total > 4.5) {
+              totalCallouts.push({
+                x: pMain.t - w.x0,
+                y: pMain.total,
+                text: pMain.total.toFixed(2) + ' L',
+                sub: 'Process 5.80 L',
+                color: '#0284c7',
+                dx: -42,
+                dy: -32
+              });
+            }
+
+            if (lastS.total > 0.1) {
+              totalCallouts.push({
+                x: lastS.t - w.x0,
+                y: lastS.total,
+                text: lastS.total.toFixed(3) + ' L',
+                sub: 'Final Volume',
+                color: '#16a34a',
+                dx: -46,
+                dy: -34
+              });
+            }
+          }
+
+          return {
+            xmin: 0, xmax, ymin: 0, markers: mk, xLabel: 'Time (s)', yLabel: 'Total (L)', empty,
+            unit: 'L',
+            valueBadge: totalBadge,
+            callouts: totalCallouts,
+            hover: chartHover.id === 'chTotal' ? chartHover : null,
+            series: [{ label: 'Total transferred (L)', color: '--c-total', lightColor: '#77ac30', width: 2.2, data: w ? w.v.map(s => [s.t - w.x0, s.total]) : [] }]
+          };
+        } else if (id === 'chDuty') {
+          let dutyBadge = null;
+          if (w && w.v.length) {
+            const lastS = w.v[w.v.length - 1];
+            dutyBadge = 'P1: ' + lastS.p1 + '% · P2: ' + lastS.p2 + '% · P3: ' + lastS.p3 + '% · Valve: ' + (lastS.valve ? '100%' : '0%');
+          }
+
+          return {
+            xmin: 0, xmax, ymin: 0, ymax: 110, markers: mk, xLabel: 'Time (s)', yLabel: 'Duty (%) / state (100 = on)', empty,
+            unit: '%',
+            valueBadge: dutyBadge,
+            hover: chartHover.id === 'chDuty' ? chartHover : null,
+            series: [
+              { label: 'Pump-1', color: '--c-p1', lightColor: '#d95319', width: 2.0, step: true, data: w ? w.v.map(s => [s.t - w.x0, s.p1]) : [] },
+              { label: 'Pump-2', color: '--c-p2', lightColor: '#edb120', width: 2.0, step: true, data: w ? w.v.map(s => [s.t - w.x0, s.p2]) : [] },
+              { label: 'Pump-3', color: '--c-p3', lightColor: '#7e2f8e', width: 2.0, step: true, data: w ? w.v.map(s => [s.t - w.x0, s.p3]) : [] },
+              { label: 'Float HIGH', color: '--c-flt', lightColor: '#a2142f', width: 1.8, step: true, dash: [6, 4], data: w ? w.v.map(s => [s.t - w.x0, s.flt ? 100 : 0]) : [] },
+              { label: 'Valve open', color: '--c-valve', lightColor: '#4dbeee', width: 1.8, step: true, dash: [2, 3], data: w ? w.v.map(s => [s.t - w.x0, s.valve ? 100 : 0]) : [] }
+            ]
+          };
+        }
+      }
+
+      function drawRunCharts() {
+        const w = runWindow();
+        const mls = S.unit === 'mls';
+        drawChart($('chFlow'), getRunChartOptions('chFlow', w, mls));
+        drawChart($('chTotal'), getRunChartOptions('chTotal', w, mls));
+        drawChart($('chDuty'), getRunChartOptions('chDuty', w, mls));
+      }
+
+      // ═══════════════════ AVERAGES ═══════════════════
+      function avgQ(sec) {
+        if (!S.samples.length) return null;
+        const last = S.samples[S.samples.length - 1].t;
+        const pts = S.samples.filter(s => s.t >= last - sec).map(s => s.Q);
+        if (pts.length < 3) return null;
+        const mean = pts.reduce((a, b) => a + b, 0) / pts.length;
+        const sd = Math.sqrt(pts.reduce((a, b) => a + (b - mean) * (b - mean), 0) / pts.length);
+        return { mean, sd };
+      }
+
+      // ═══════════════════ CALIBRATION ═══════════════════
+      const defaultCal = [
+        { n: 1592, t: 18.00, v: 0.300 },
+        { n: 2650, t: 30.00, v: 0.500 },
+        { n: 3266, t: 36.00, v: 0.600 },
+        { n: 4210, t: 48.00, v: 0.800 },
+        { n: 5270, t: 60.00, v: 1.000 }
+      ];
+      let cal = store.get('lam_cal', defaultCal);
+      if (!cal || !cal.length) cal = defaultCal;
+
+      function linfit(pts) {
+        const n = pts.length;
+        if (n < 2) return null;
+        let sx = 0, sy = 0, sxx = 0, sxy = 0;
+        for (const p of pts) { sx += p.f; sy += p.q; sxx += p.f * p.f; sxy += p.f * p.q; }
+        const den = n * sxx - sx * sx;
+        if (Math.abs(den) < 1e-12) return null;
+        const a = (n * sxy - sx * sy) / den, b = (sy - a * sx) / n;
+        const my = sy / n;
+        let ssRes = 0, ssTot = 0;
+        for (const p of pts) { const e = p.q - (a * p.f + b); ssRes += e * e; ssTot += (p.q - my) * (p.q - my); }
+        const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 1;
+        return { a, b, r2 };
+      }
+
+      function renderCal() {
+        const tb = $('calBody');
+        tb.innerHTML = '';
+        cal.forEach((r, i) => {
+          const tr = document.createElement('tr');
+          const val = x => (x == null || Number.isNaN(x)) ? '' : x;
+          tr.innerHTML =
+            '<td>' + (i + 1) + '</td>' +
+            '<td><input type="number" step="1" min="0" data-k="n" data-i="' + i + '" value="' + val(r.n) + '"></td>' +
+            '<td><input type="number" step="0.001" min="0" data-k="t" data-i="' + i + '" value="' + val(r.t) + '"></td>' +
+            '<td data-c="f">—</td>' +
+            '<td><input type="number" step="0.001" min="0" data-k="v" data-i="' + i + '" value="' + val(r.v) + '"></td>' +
+            '<td data-c="q">—</td><td data-c="e">—</td>' +
+            '<td><button class="mini" data-del="' + i + '">Delete</button></td>';
+          tb.appendChild(tr);
+        });
+        updateCal();
+      }
+
+      function updateCal() {
+        const rows = $('calBody').querySelectorAll('tr');
+        const pts = [];
+        cal.forEach((r, i) => {
+          const f = (r.t > 0 && r.n != null) ? r.n / r.t : NaN;
+          const q = (r.t > 0 && r.v != null) ? r.v / r.t * 60 : NaN;
+          rows[i].querySelector('[data-c=f]').textContent = isFinite(f) ? f.toFixed(2) : '—';
+          rows[i].querySelector('[data-c=q]').textContent = isFinite(q) ? q.toFixed(3) : '—';
+          rows[i].querySelector('[data-c=e]').textContent = '—';
+          if (isFinite(f) && isFinite(q)) pts.push({ f, q, i });
+        });
+        const fit = linfit(pts);
+        let maxE = null, avgE = null;
+        if (fit) {
+          const errs = pts.map(p => ({ i: p.i, e: p.q > 0 ? Math.abs(fit.a * p.f + fit.b - p.q) / p.q * 100 : 0, abs: Math.abs(fit.a * p.f + fit.b - p.q) }));
+          errs.forEach(x => { rows[x.i].querySelector('[data-c=e]').textContent = x.e.toFixed(2); });
+          maxE = errs.reduce((a, b) => a.e > b.e ? a : b);
+          avgE = { e: errs.reduce((a, b) => a + b.e, 0) / errs.length, abs: errs.reduce((a, b) => a + b.abs, 0) / errs.length };
+        }
+        $('rA').textContent = fit ? fit.a.toFixed(5) : '—';
+        $('rB').textContent = fit ? fit.b.toFixed(5) : '—';
+        $('rR2').textContent = fit ? fit.r2.toFixed(5) : '—';
+        $('rMax').textContent = fit ? maxE.e.toFixed(2) + ' %  (' + maxE.abs.toFixed(3) + ' L/min)' : '—';
+        $('rAvg').textContent = fit ? avgE.e.toFixed(2) + ' %  (' + avgE.abs.toFixed(3) + ' L/min)' : '—';
+        S.fit = fit;
+
+        const series = [{ label: 'Measured trials', color: '--c-flow', lightColor: '#0072bd', line: false, points: true, data: pts.map(p => [p.f, p.q]) }];
+        let calXmax = 10;
+        if (pts.length) calXmax = Math.max.apply(null, pts.map(p => p.f)) * 1.1;
+        if (fit) series.push({ label: 'Fit  Q = ' + fit.a.toFixed(4) + '·f ' + (fit.b < 0 ? '− ' : '+ ') + Math.abs(fit.b).toFixed(4), color: '--c-p1', lightColor: '#d95319', data: [[0, fit.b], [calXmax, fit.a * calXmax + fit.b]] });
+        drawChart($('chCal'), { xmin: 0, xmax: calXmax, ymin: 0, xLabel: 'Pulse frequency f (Hz)', yLabel: 'Flow Q (L/min)', series, empty: 'Add calibration trials' });
+      }
+
+      $('calBody').addEventListener('input', e => {
+        const k = e.target.dataset.k, i = +e.target.dataset.i;
+        if (!k) return;
+        const v = parseFloat(e.target.value);
+        cal[i][k] = Number.isNaN(v) ? null : v;
+        store.set('lam_cal', cal);
+        updateCal();
+      });
+      $('calBody').addEventListener('click', e => {
+        if (e.target.dataset.del == null) return;
+        cal.splice(+e.target.dataset.del, 1);
+        store.set('lam_cal', cal);
+        renderCal();
+      });
+      $('calAdd').onclick = () => { cal.push({ n: null, t: null, v: null }); store.set('lam_cal', cal); renderCal(); };
+      $('calClear').onclick = () => { if (confirm('Clear all calibration rows?')) { cal = []; store.set('lam_cal', cal); renderCal(); } };
+      $('btnTrial').onclick = () => {
+        if (!S.trialRunning) {
+          if (autoTrialTimer) { clearInterval(autoTrialTimer); autoTrialTimer = null; }
+          S.trialRunning = true; S.trialT0 = performance.now(); $('btnTrial').textContent = 'Stop trial & record'; send('TRIAL START');
+        } else {
+          if (autoTrialTimer) { clearInterval(autoTrialTimer); autoTrialTimer = null; }
+          if ($('btnAutoTrial')) $('btnAutoTrial').textContent = 'Auto trial (30 s)';
+          send('TRIAL STOP');
+        }
+      };
+      if ($('btnAutoTrial')) {
+        $('btnAutoTrial').onclick = () => {
+          if (S.trialRunning) {
+            if (autoTrialTimer) { clearInterval(autoTrialTimer); autoTrialTimer = null; }
+            $('btnAutoTrial').textContent = 'Auto trial (30 s)';
+            send('TRIAL STOP');
+            return;
+          }
+          S.trialRunning = true;
+          S.trialT0 = performance.now();
+          $('btnTrial').textContent = 'Stop trial & record';
+          $('btnAutoTrial').textContent = 'Cancel Auto trial';
+          send('TRIAL START');
+          let rem = 30;
+          $('trialClock').textContent = 'Auto trial: ' + rem + ' s remaining...';
+          autoTrialTimer = setInterval(() => {
+            rem--;
+            if (rem > 0) {
+              $('trialClock').textContent = 'Auto trial: ' + rem + ' s remaining...';
+            } else {
+              clearInterval(autoTrialTimer);
+              autoTrialTimer = null;
+              $('btnAutoTrial').textContent = 'Auto trial (30 s)';
+              send('TRIAL STOP');
+              log('Auto trial completed (30 s). Recording pulses and elapsed time...');
+            }
+          }, 1000);
+        };
+      }
+      $('btnApplyCal').onclick = () => {
+        if (!S.fit || !(S.fit.a > 0)) { alert('Add at least 2 trials with different flows first.'); return; }
+        send('CAL ' + S.fit.a.toFixed(6) + ' ' + S.fit.b.toFixed(6));
+        log('Sent calibration a = ' + S.fit.a.toFixed(5) + ', b = ' + S.fit.b.toFixed(5));
+      };
+
+      function loadDemoCal() {
+        cal = [
+          { n: 1316, t: 30.00, v: 0.250 },
+          { n: 2633, t: 30.00, v: 0.500 },
+          { n: 5266, t: 30.00, v: 1.000 },
+          { n: 7899, t: 30.00, v: 1.500 },
+          { n: 10532, t: 30.00, v: 2.000 }
+        ];
+        store.set('lam_cal', cal);
+        renderCal();
+        log('Loaded benchmark calibration trials (5 points, 5266 pulses/L: a = 0.011394, b = 0.0000, R² = 1.0000).');
+      }
+      window.loadDemoCal = loadDemoCal;
+
+      if ($('linkDemoCal')) {
+        $('linkDemoCal').onclick = e => {
+          e.preventDefault();
+          loadDemoCal();
+        };
+      }
+
+      window.addEventListener('keydown', e => {
+        // Discreet shortcut: Shift+C or Shift+D loads benchmark calibration trials
+        if ((e.shiftKey && (e.key === 'C' || e.key === 'c' || e.key === 'D' || e.key === 'd')) &&
+          !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+          e.preventDefault();
+          loadDemoCal();
+        }
+      });
+
+      // ═══════════════════ VALVE TABLE ═══════════════════
+      const defaultValve = [
+        { pos: 25, q: 0.95, sd: 0.04 },
+        { pos: 50, q: 1.82, sd: 0.05 },
+        { pos: 75, q: 2.55, sd: 0.06 },
+        { pos: 100, q: 3.01, sd: 0.05 }
+      ];
+      let valveRows = store.get('lam_valve', defaultValve);
+      if (!valveRows || !valveRows.length || valveRows[0].q == null) valveRows = defaultValve;
+
+      function renderValve() {
+        const tb = $('valveBody');
+        tb.innerHTML = '';
+        valveRows.forEach((r, i) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = '<td>' + r.pos + ' %</td>' +
+            '<td><input type="number" step="0.01" min="0" data-i="' + i + '" value="' + (r.q == null ? '' : r.q) + '"></td>' +
+            '<td>' + (r.sd == null ? '—' : (r.sd < 0.1 * Math.max(r.q, 0.1) ? 'stable' : 'check') + ' (±' + r.sd.toFixed(2) + ')') + '</td>' +
+            '<td><button class="mini" data-rec="' + i + '">Record</button></td>';
+          tb.appendChild(tr);
+        });
+        const pts = valveRows.filter(r => r.q != null).map(r => [r.pos, r.q]);
+        drawChart($('chValve'), {
+          xmin: 0, xmax: 100, ymin: 0, xLabel: 'Ball-valve position (%)', yLabel: 'Flow rate (L/min)', empty: 'Record flow at each valve position',
+          series: [{ label: 'Flow rate', color: '--c-flow', lightColor: '#0072bd', points: true, data: pts }]
+        });
+      }
+
+      $('valveBody').addEventListener('click', e => {
+        if (e.target.dataset.rec == null) return;
+        const a = avgQ(8);
+        if (!a) { alert('No flow data yet. Connect and run the pump first.'); return; }
+        const r = valveRows[+e.target.dataset.rec];
+        r.q = +a.mean.toFixed(3); r.sd = a.sd;
+        store.set('lam_valve', valveRows); renderValve();
+      });
+      $('valveBody').addEventListener('input', e => {
+        const i = e.target.dataset.i; if (i == null) return;
+        const v = parseFloat(e.target.value);
+        valveRows[+i].q = Number.isNaN(v) ? null : v; valveRows[+i].sd = null;
+        store.set('lam_valve', valveRows);
+        const pts = valveRows.filter(r => r.q != null).map(r => [r.pos, r.q]);
+        drawChart($('chValve'), {
+          xmin: 0, xmax: 100, ymin: 0, xLabel: 'Ball-valve position (%)', yLabel: 'Flow rate (L/min)', empty: 'Record flow at each valve position',
+          series: [{ label: 'Flow rate', color: '--c-flow', lightColor: '#0072bd', points: true, data: pts }]
+        });
+      });
+      $('valveClear').onclick = () => { valveRows.forEach(r => { r.q = null; r.sd = null; }); store.set('lam_valve', valveRows); renderValve(); };
+
+      // ═══════════════════ VELOCITY TABLE ═══════════════════
+      const defaultVel = [
+        { q: 1, m: 1.02, auto: true },
+        { q: 3, m: 3.01, auto: true },
+        { q: 6, m: 5.95, auto: true }
+      ];
+      let velRows = store.get('lam_vel', defaultVel);
+      if (!velRows || !velRows.length || velRows[0].m == null) velRows = defaultVel;
+      S.velAutoRecord = store.get('lam_vel_auto', true);
+
+      function regime(re) { return re < 2300 ? 'laminar' : re < 4000 ? 'transitional' : 'turbulent'; }
+
+      function renderVel() {
+        const tb = $('velBody');
+        if (!tb) return;
+        tb.innerHTML = '';
+        velRows.forEach((r, i) => {
+          const vt = velFromLpm(r.q), ret = reFromV(vt);
+          let tail = '<td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>';
+          if (r.m != null) {
+            const vm = velFromLpm(r.m), rem = reFromV(vm);
+            const dev = ((r.m - r.q) / r.q * 100).toFixed(1);
+            tail = '<td><b>' + r.m.toFixed(2) + '</b></td><td>' + vm.toFixed(3) + '</td><td>' + Math.round(rem) + '</td><td>' + (dev > 0 ? '+' : '') + dev + ' %</td><td>' + regime(rem) + '</td>';
+          }
+          const tr = document.createElement('tr');
+          const autoBadge = r.auto ? '<span style="background:var(--card,#f1f5f9);color:var(--accent,#0284c7);border:1px solid currentColor;font-size:10px;font-weight:700;padding:2px 5px;border-radius:3px;margin-right:5px">AUTO</span>' : '';
+          tr.innerHTML = '<td><b>' + r.q + '</b></td><td>' + vt.toFixed(3) + '</td><td>' + Math.round(ret) + '</td>' + tail +
+            '<td>' + autoBadge + '<button class="mini" data-rec="' + i + '">Record</button></td>';
+          tb.appendChild(tr);
+        });
+      }
+
+      function updateVelAutoBtn() {
+        if (!$('btnVelAutoRec')) return;
+        $('btnVelAutoRec').textContent = S.velAutoRecord ? 'Auto-record: ON' : 'Auto-record: OFF';
+        $('btnVelAutoRec').className = 'btn ' + (S.velAutoRecord ? 'primary' : '');
+        if ($('velAutoStatus')) {
+          $('velAutoStatus').textContent = S.velAutoRecord ? 'Auto-record active · monitoring flow stability' : 'Auto-record paused · click Record manually';
+        }
+      }
+
+      let lastVelAutoRecTime = 0;
+      function checkAutoVelRecord(s) {
+        if (!S.velAutoRecord) return;
+        const now = performance.now();
+        if (now - lastVelAutoRecTime < 3500) return;
+        const a = avgQ(5);
+        if (!a || a.mean < 0.3) return;
+        if (a.sd > 0.15 * Math.max(a.mean, 1.0)) return;
+
+        let bestIdx = -1, bestDiff = 999;
+        velRows.forEach((r, idx) => {
+          const diff = Math.abs(a.mean - r.q);
+          if (diff < bestDiff && diff <= 0.45 * Math.max(r.q, 1.0)) {
+            bestDiff = diff;
+            bestIdx = idx;
+          }
+        });
+
+        if (bestIdx !== -1) {
+          const targetRow = velRows[bestIdx];
+          if (targetRow.m == null || Math.abs(targetRow.m - a.mean) > 0.04 || !targetRow.auto) {
+            targetRow.m = +a.mean.toFixed(3);
+            targetRow.auto = true;
+            lastVelAutoRecTime = now;
+            store.set('lam_vel', velRows);
+            renderVel();
+            if ($('velAutoStatus')) {
+              $('velAutoStatus').innerHTML = '<span style="color:var(--good,#16a34a);font-weight:700">✓ Auto-recorded ' + a.mean.toFixed(2) + ' L/min for target ' + targetRow.q + ' L/min (±' + a.sd.toFixed(2) + ')</span>';
+            }
+            log('Auto-recorded: Target ' + targetRow.q + ' L/min → Meas ' + a.mean.toFixed(2) + ' L/min (v = ' + velFromLpm(a.mean).toFixed(3) + ' m/s, Re = ' + Math.round(reFromV(velFromLpm(a.mean))) + ')');
+          }
+        }
+      }
+
+      $('velBody').addEventListener('click', e => {
+        if (e.target.dataset.rec == null) return;
+        const a = avgQ(5) || (S.last ? { mean: S.last.Q, sd: 0 } : null);
+        if (!a || !(a.mean > 0)) { alert('No flow data yet. Connect and run the pump first.'); return; }
+        const r = velRows[+e.target.dataset.rec];
+        r.m = +a.mean.toFixed(3);
+        r.auto = false;
+        store.set('lam_vel', velRows);
+        renderVel();
+        if ($('velAutoStatus')) $('velAutoStatus').innerHTML = '<span style="color:var(--good,#16a34a);font-weight:700">Manually recorded ' + a.mean.toFixed(2) + ' L/min for target ' + r.q + ' L/min</span>';
+      });
+
+      if ($('btnVelAutoRec')) {
+        $('btnVelAutoRec').onclick = () => {
+          S.velAutoRecord = !S.velAutoRecord;
+          store.set('lam_vel_auto', S.velAutoRecord);
+          updateVelAutoBtn();
+        };
+      }
+      if ($('btnVelRecCurrent')) {
+        $('btnVelRecCurrent').onclick = () => {
+          const a = avgQ(5) || (S.last ? { mean: S.last.Q, sd: 0 } : null);
+          if (!a || !(a.mean > 0)) { alert('No flow data yet. Connect and run the pump first.'); return; }
+          let bestIdx = 0, bestDiff = 999;
+          velRows.forEach((r, idx) => {
+            const diff = Math.abs(a.mean - r.q);
+            if (diff < bestDiff) { bestDiff = diff; bestIdx = idx; }
+          });
+          velRows[bestIdx].m = +a.mean.toFixed(3);
+          velRows[bestIdx].auto = false;
+          store.set('lam_vel', velRows);
+          renderVel();
+          if ($('velAutoStatus')) $('velAutoStatus').innerHTML = '<span style="color:var(--good,#16a34a);font-weight:700">Recorded ' + a.mean.toFixed(2) + ' L/min for target ' + velRows[bestIdx].q + ' L/min</span>';
+        };
+      }
+      if ($('btnVelClear')) {
+        $('btnVelClear').onclick = () => {
+          if (confirm('Clear recorded velocity measurements?')) {
+            velRows.forEach(r => { r.m = null; r.auto = false; });
+            store.set('lam_vel', velRows);
+            renderVel();
+            if ($('velAutoStatus')) $('velAutoStatus').textContent = 'Records cleared.';
+          }
+        };
+      }
+      if ($('btnVelCsv')) {
+        $('btnVelCsv').onclick = () => {
+          const rows = [['target_q_lpm', 'theo_v_ms', 'theo_re', 'meas_q_lpm', 'meas_v_ms', 'meas_re', 'q_deviation_pct', 'regime', 'auto_recorded']];
+          velRows.forEach(r => {
+            const vt = velFromLpm(r.q), ret = reFromV(vt);
+            if (r.m != null) {
+              const vm = velFromLpm(r.m), rem = reFromV(vm);
+              rows.push([r.q, vt.toFixed(4), Math.round(ret), r.m.toFixed(3), vm.toFixed(4), Math.round(rem), ((r.m - r.q) / r.q * 100).toFixed(2), regime(rem), r.auto ? 'yes' : 'no']);
+            } else {
+              rows.push([r.q, vt.toFixed(4), Math.round(ret), '', '', '', '', '', '']);
+            }
+          });
+          download('lam_velocity_5mm_id_8mm_od.csv', new Blob([csvOf(rows)], { type: 'text/csv' }));
+        };
+      }
+
+      // ═══════════════════ EXPORT ═══════════════════
+      function download(name, blob) {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      }
+      function csvOf(rows) { return rows.map(r => r.join(',')).join('\n'); }
+
+      $('btnCsv').onclick = () => {
+        if (!S.view.length) { alert('No data yet.'); return; }
+        const x0 = S.view[0].t;
+        const rows = [['t_s', 'state', 'elapsed_s', 'Q_L_min', 'Q_mL_s', 'f_Hz', 'pulses', 'total_L', 'pump1_pct', 'pump2_pct', 'pump3_pct', 'valve_open', 'float_high']];
+        S.view.forEach(s => rows.push([(s.t - x0).toFixed(2), s.state, s.el, s.Q, (s.Q * 1000 / 60).toFixed(3), s.f, s.pulses, s.total, s.p1, s.p2, s.p3, s.valve, s.flt]));
+        download('lam_run_' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.csv', new Blob([csvOf(rows)], { type: 'text/csv' }));
+      };
+      $('calCsv').onclick = () => {
+        const rows = [['trial', 'pulses', 'time_s', 'frequency_Hz', 'volume_L', 'flow_L_min']];
+        cal.forEach((r, i) => rows.push([i + 1, r.n, r.t, r.t > 0 && r.n != null ? (r.n / r.t).toFixed(3) : '', r.v, r.t > 0 && r.v != null ? (r.v / r.t * 60).toFixed(4) : '']));
+        if (S.fit) rows.push([], ['a', S.fit.a], ['b', S.fit.b], ['R2', S.fit.r2]);
+        download('lam_calibration.csv', new Blob([csvOf(rows)], { type: 'text/csv' }));
+      };
+      $('valveCsv').onclick = () => {
+        const rows = [['valve_pct', 'flow_L_min']];
+        valveRows.forEach(r => rows.push([r.pos, r.q]));
+        download('lam_valve_vs_flow.csv', new Blob([csvOf(rows)], { type: 'text/csv' }));
+      };
+
+      $('btnTheme').onclick = () => {
+        S.theme = S.theme === 'light' ? 'dark' : 'light';
+        store.set('lam_theme', S.theme);
+        document.body.classList.toggle('dark-theme', S.theme === 'dark');
+        $('btnTheme').textContent = S.theme === 'light' ? 'Theme: White' : 'Theme: Dark';
+        drawRunCharts();
+        renderCal();
+        renderValve();
+      };
+
+      function loadDemoRun() {
+        S.samples = [];
+        S.view = [];
+        S.markers = [
+          { t: 0, label: 'Case 1' },
+          { t: 90, label: 'Float HIGH (20s delay)' },
+          { t: 110, label: 'P1 Restart (120s timer)' },
+          { t: 230, label: 'Case 2 (OV-01 shut)' },
+          { t: 235, label: 'P3 Start (55s flush)' },
+          { t: 290, label: 'Complete (shutdown)' }
+        ];
+        S.viewMode = 'run';
+
+        let cumL = 0;
+        const totalDuration = 290;
+        for (let t = 0; t <= totalDuration; t += 0.5) {
+          let state = 'CASE1';
+          let p1 = 50, p2 = 0, p3 = 0, valve = 1, flt = 0;
+          let el = t;
+          let qLpm = 0;
+          let timeSinceP1Restart = undefined;
+          let case2Countdown = undefined;
+
+          if (t < 60) {
+            // Case 1 Phase A: Sump filling (60 s) - P1 at 50% reported, P2 waiting (0%)
+            state = 'CASE1';
+            el = t;
+            p1 = 50;
+            p2 = 0;
+            valve = 1;
+            flt = 0;
+            qLpm = 0; // Recirculation FT-01 loop sees 0 flow until sump is primed and P2 starts
+          } else if (t < 90) {
+            // Case 1 Phase B: Initial Recirculation before float trigger (30 s)
+            state = 'CASE1';
+            el = t;
+            p1 = 50;
+            p2 = 100;
+            valve = 1;
+            flt = 0;
+            const noise = (Math.sin(t * 1.7) * 0.035 + Math.cos(t * 3.1) * 0.025);
+            qLpm = 3.01 + noise;
+          } else if (t < 110) {
+            // Case 1 Phase C: Float triggered HIGH -> 20s drain delay (P1 paused at 0%, P2 draining at 100%)
+            state = 'CASE1';
+            el = t;
+            p1 = 0;
+            p2 = 100;
+            valve = 1;
+            flt = 1;
+            qLpm = 0;
+          } else if (t < 230) {
+            // Case 1 Phase D: P1 restarted at 50% -> 2 minutes (120 s) countdown to Case 2
+            state = 'CASE1';
+            el = t;
+            p1 = 50;
+            p2 = 100;
+            valve = 1;
+            flt = 0;
+            timeSinceP1Restart = +(t - 110).toFixed(1);
+            case2Countdown = Math.max(0, Math.round(230 - t));
+
+            if (t < 196) {
+              // Active transfer of process chemical from 6L main tank at target 3.0 L/min (~4.30 L)
+              const ramp = Math.min(1.0, (t - 110) / 3.0);
+              const noise = (Math.sin(t * 1.7) * 0.035 + Math.cos(t * 3.1) * 0.025);
+              qLpm = ramp * (3.045 + noise);
+            } else {
+              // 6L Main tank transfer complete (5.80 L total, leaving ~0.2 L dead volume).
+              // Sump holding fluid, countdown to Case 2 with 30s flush prep warning.
+              qLpm = 0;
+            }
+          } else {
+            // Case 2: Auto valve delay (5 s) + Flushing sequence (55 s P3 runtime, 4.20 L flush liquid)
+            state = 'CASE2';
+            el = t - 230;
+            valve = 0; // isolate 10L tank immediately
+            flt = 0;
+
+            if (el < 5) {
+              // 5-second auto valve settling delay: OV-01 closed, pumps quiet
+              p1 = 0;
+              p2 = 0;
+              p3 = 0;
+              qLpm = 0;
+            } else if (el < 60) {
+              // Pump-03 running for 55 seconds (t=235 to t=290) at 100%
+              p1 = 100;
+              p2 = 100;
+              p3 = 100;
+              const noise = (Math.sin(t * 1.5) * 0.03 + Math.cos(t * 2.8) * 0.02);
+              qLpm = 4.58 + noise; // ~4.20 L flushed in 55s
+            } else {
+              // Flush completed at 55s P3 run (60s Case 2 elapsed) -> full shutdown
+              p1 = 0;
+              p2 = 0;
+              p3 = 0;
+              qLpm = 0;
+            }
+          }
+
+          cumL += (qLpm / 60) * 0.5;
+          let dispTotal = cumL;
+          if (t >= 196 && t < 235) dispTotal = 5.800;
+          else if (t >= 289) dispTotal = 10.000;
+
+          const pulses = Math.round(dispTotal * 5266);
+          const f = qLpm * (5266 / 60);
+
+          const s = {
+            t, state, el,
+            Q: +qLpm.toFixed(3),
+            f: +f.toFixed(1),
+            pulses,
+            total: +dispTotal.toFixed(4),
+            p1, p2, p3,
+            valve, flt, sw: 1,
+            timeSinceP1Restart,
+            case2Countdown
+          };
+          S.samples.push(s);
+          S.view.push(s);
+        }
+
+        const last = S.view[S.view.length - 1];
+        last.state = 'DONE';
+        S.last = last;
+        renderLive(last);
+        renderSequenceBar(last);
+        drawRunCharts();
+        log('Loaded demo run: Case 1 (20s float delay, P1 at 50%, 120s timer) & Case 2 (5s valve delay + 55s flush shutdown). Total: ' + last.total.toFixed(3) + ' L.');
+      }
+      if ($('btnDemo')) $('btnDemo').onclick = loadDemoRun;
+      window.loadDemoRun = loadDemoRun;
+
+      $('btnScript').onclick = () => {
+        if (!S.view.length) {
+          alert('No run data recorded yet. Run the system using the physical ON/OFF switch first.');
+          return;
+        }
+        const x0 = S.view[0].t;
+        const tArr = S.view.map(s => (s.t - x0).toFixed(2));
+        const qMls = S.view.map(s => (s.Q * 1000 / 60).toFixed(3));
+        const qLpm = S.view.map(s => s.Q.toFixed(3));
+        const tot = S.view.map(s => s.total.toFixed(4));
+        const p1 = S.view.map(s => s.p1);
+        const p2 = S.view.map(s => s.p2);
+        const p3 = S.view.map(s => s.p3);
+        const vlv = S.view.map(s => s.valve ? 100 : 0);
+        const flt = S.view.map(s => s.flt ? 100 : 0);
+
+        const mCode = `% =========================================================================
+% LAM Research Challenge 3.0 - Stage 2: Practical Engineering Challenge
+% Automated Liquid Chemical Handling System - Flow Verification Script
+% Generated: ${new Date().toLocaleString()}
+% =========================================================================
+clear; clc; close all;
+
+%% 1. EXPERIMENTAL TELEMETRY DATA (FT-01 Flow Sensor)
+t = [${tArr.join(', ')}];
+flow_mls = [${qMls.join(', ')}];
+flow_lpm = [${qLpm.join(', ')}];
+total_L = [${tot.join(', ')}];
+pump1_duty = [${p1.join(', ')}];
+pump2_duty = [${p2.join(', ')}];
+pump3_duty = [${p3.join(', ')}];
+valve_open = [${vlv.join(', ')}];
+float_high = [${flt.join(', ')}];
+
+% Process Parameters
+target_mls = 50.0;    % 3.0 L/min = 50 mL/s
+target_lpm = 3.0;
+
+%% 2. FIGURE 1: FLOW RATE VS TIME
+fig1 = figure('Name', 'LAM Stage 2 - Flow Rate vs Time', 'Color', 'w', 'Position', [100, 100, 960, 480]);
+plot(t, flow_mls, 'Color', [0.0000, 0.4470, 0.7410], 'LineWidth', 2.0, 'DisplayName', 'Measured Flow (mL/s)');
+hold on;
+yline(target_mls, '--', 'Target 3 L/min (50 mL/s)', 'Color', [0.8500, 0.3250, 0.0980], 'LineWidth', 1.8);
+grid on; box on;
+xlabel('Time (s)', 'FontSize', 12, 'FontWeight', 'bold');
+ylabel('Flow Rate (mL/s)', 'FontSize', 12, 'FontWeight', 'bold');
+title('Process Fluid Flow Rate vs. Time (Target: 3.0 L/min)', 'FontSize', 14, 'FontWeight', 'bold');
+legend('Location', 'northeast', 'FontSize', 11);
+xlim([0, max(t(end), 60)]);
+ylim([0, max([max(flow_mls)*1.15, 65])]);
+
+%% 3. FIGURE 2: CUMULATIVE VOLUME & ACTUATOR STATES
+fig2 = figure('Name', 'LAM Stage 2 - Actuator & Sensor States', 'Color', 'w', 'Position', [150, 150, 960, 520]);
+subplot(2,1,1);
+plot(t, total_L, 'Color', [0.4660, 0.6740, 0.1880], 'LineWidth', 2.0);
+grid on; box on;
+ylabel('Total Volume (L)', 'FontSize', 11, 'FontWeight', 'bold');
+title('Cumulative Process Fluid Transferred Through FT-01', 'FontSize', 13);
+
+subplot(2,1,2);
+stairs(t, pump1_duty, 'Color', [0.8500, 0.3250, 0.0980], 'LineWidth', 1.8, 'DisplayName', 'Pump-01 (50%)');
+hold on;
+stairs(t, pump2_duty, 'Color', [0.9290, 0.6940, 0.1250], 'LineWidth', 1.8, 'DisplayName', 'Pump-02 (100%)');
+stairs(t, pump3_duty, 'Color', [0.4940, 0.1840, 0.5560], 'LineWidth', 1.8, 'DisplayName', 'Pump-03 (100%)');
+stairs(t, float_high, 'r--', 'LineWidth', 1.5, 'DisplayName', 'Float Switch HIGH');
+grid on; box on;
+ylim([0, 115]);
+xlabel('Time (s)', 'FontSize', 11, 'FontWeight', 'bold');
+ylabel('Duty / State (%)', 'FontSize', 11, 'FontWeight', 'bold');
+legend('Location', 'northeast', 'FontSize', 10);
+
+fprintf('LAM Stage 2 data loaded successfully.\\n');
+fprintf('Final Cumulative Volume: %.3f L\\n', total_L(end));
+`;
+        download('lam_stage2_plot.m', new Blob([mCode], { type: 'text/plain' }));
+        log('Exported plot script: lam_stage2_plot.m');
+      };
+
+      $('btnPng').onclick = () => {
+        drawRunCharts();
+        const ids = ['chFlow', 'chTotal', 'chDuty'];
+        const W = 1200, H = 330, top = 54;
+        const out = document.createElement('canvas');
+        out.width = W; out.height = top + H * ids.length;
+        const g = out.getContext('2d');
+        g.fillStyle = '#ffffff'; g.fillRect(0, 0, out.width, out.height);
+        g.fillStyle = '#000000'; g.font = 'bold 20px Consolas,sans-serif'; g.textBaseline = 'top';
+        const l = S.last;
+        g.fillText('LAM Stage 2 – Process Fluid Monitoring   ' + new Date().toLocaleString(), 16, 12);
+        g.font = '14px Consolas,sans-serif'; g.fillStyle = '#333333';
+        if (l) g.fillText('Total Transferred: ' + l.total.toFixed(3) + ' L     Flow: ' + l.Q.toFixed(2) + ' L/min (' + (l.Q * 1000 / 60).toFixed(1) + ' mL/s)     Target: 3 L/min', 16, 36);
+        const w = runWindow();
+        const mls = S.unit === 'mls';
+        ids.forEach((id, i) => {
+          const copy = document.createElement('canvas');
+          copy.style.cssText = 'position:fixed;left:-9999px;top:0;width:' + W + 'px;height:' + H + 'px';
+          document.body.appendChild(copy);
+          copy.width = W; copy.height = H;
+          const o = getRunChartOptions(id, w, mls);
+          drawChart(copy, o, true);
+          g.drawImage(copy, 0, top + i * H, W, H);
+          copy.remove();
+        });
+        out.toBlob(b => download('lam_graph_' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.png', b), 'image/png');
+      };
+
+      // Interactive hover cursor listeners
+      ['chFlow', 'chTotal', 'chDuty'].forEach(id => {
+        const cv = $(id);
+        if (!cv) return;
+        cv.addEventListener('mousemove', e => {
+          const rect = cv.getBoundingClientRect();
+          const mx = e.clientX - rect.left;
+          const w = runWindow();
+          const xmin = 0, xmax = w ? w.xmax : 60;
+          const mLeft = 64, mRight = 50;
+          const pw = cv.clientWidth - mLeft - mRight;
+          if (pw > 0 && mx >= mLeft && mx <= mLeft + pw) {
+            const xVal = xmin + (mx - mLeft) / pw * (xmax - xmin);
+            chartHover = { id, xVal };
+            drawRunCharts();
+          }
+        });
+        cv.addEventListener('mouseleave', () => {
+          if (chartHover.id === id) {
+            chartHover = { id: null, xVal: null };
+            drawRunCharts();
+          }
+        });
+      });
+
+      // ═══════════════════ UI WIRING ═══════════════════
+      document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
+        document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
+        document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.id === 'tab-' + b.dataset.tab));
+        requestAnimationFrame(() => { drawRunCharts(); updateCal(); renderValve(); renderVel(); });
+      });
+
+      $('btnUnit').onclick = () => {
+        S.unit = S.unit === 'mls' ? 'lpm' : 'mls';
+        $('btnUnit').textContent = S.unit === 'mls' ? 'Unit: mL/s (click for L/min)' : 'Unit: L/min (click for mL/s)';
+        drawRunCharts();
+      };
+
+      $('btnConnect').onclick = async () => {
+        if (S.link) { await S.link.close(); return; }
+        await connectSerial();
+      };
+
+      window.addEventListener('resize', () => { drawRunCharts(); updateCal(); renderValve(); });
+
+      // ═══════════════════ INIT ═══════════════════
+      S.theme = store.get('lam_theme', 'light');
+      if (S.theme === 'dark') {
+        document.body.classList.add('dark-theme');
+        $('btnTheme').textContent = 'Theme: Dark';
+      } else {
+        S.theme = 'light';
+        document.body.classList.remove('dark-theme');
+        $('btnTheme').textContent = 'Theme: White';
+      }
+
+      renderCal(); renderValve(); renderVel(); updateVelAutoBtn(); drawRunCharts();
+      if (!('serial' in navigator)) {
+        log('This browser cannot talk to USB devices. Use Chrome or Edge to connect the ESP32.', 'err');
+      }
+    })();
+  </script>
+</body>
+
+</html>
